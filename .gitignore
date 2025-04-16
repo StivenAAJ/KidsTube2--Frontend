@@ -4,7 +4,7 @@ node_modules
 *.log
 
 # kids-tube specific ignores
-kids-tube/node_modules
+/kids-tube/node_modules
 kids-tube/dist
 kids-tube/.vscode/*
 !kids-tube/.vscode/extensions.json
