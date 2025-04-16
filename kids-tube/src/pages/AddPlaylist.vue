@@ -24,46 +24,55 @@
     </div>
   </template>
   
-  <script>
+  <script setup>
   import { ref, onMounted } from "vue";
+  import { useRouter } from 'vue-router';
+  import { useTokenValidation } from '../composables/useTokenValidation';
   
-  export default {
-    setup() {
-      const playlist = ref({ name: "", profiles: [] });
-      const profiles = ref([]);
+  const { validateToken } = useTokenValidation();
+  const router = useRouter();
   
-      // Obtener perfiles disponibles
-      const fetchProfiles = async () => {
-        try {
-          const response = await fetch("http://localhost:3000/restrictedUsers");
-          profiles.value = await response.json();
-        } catch (error) {
-          console.error("Error al obtener los perfiles:", error);
-        }
-      };
+  const playlist = ref({ name: "", profiles: [] });
+  const profiles = ref([]);
   
-      // Crear Playlist
-      const createPlaylist = async () => {
-        try {
-          await fetch("http://localhost:3000/playlists", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(playlist.value),
-          });
-          window.location.href = "/dashboard"; // Redirigir después de guardar
-        } catch (error) {
-          console.error("Error al crear la playlist:", error);
-        }
-      };
-  
-      const goBack = () => {
-        window.location.href = "/dashboard";
-      };
-  
-      onMounted(fetchProfiles);
-  
-      return { playlist, profiles, createPlaylist, goBack };
-    },
+  // Obtener perfiles disponibles
+  const fetchProfiles = async () => {
+    try {
+      const response = await fetch("http://localhost:3000/restrictedUsers");
+      profiles.value = await response.json();
+    } catch (error) {
+      console.error("Error al obtener los perfiles:", error);
+    }
   };
+  
+  // Crear Playlist
+  const createPlaylist = async () => {
+    if (!validateToken()) return;
+    
+    try {
+      const response = await fetch("http://localhost:3000/playlists", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(playlist.value),
+      });
+      if (response.ok) {
+        router.push('/dashboard');
+      } else {
+        console.error("Error al crear la playlist:", await response.json());
+      }
+    } catch (error) {
+      console.error("Error al crear la playlist:", error);
+    }
+  };
+  
+  const goBack = () => {
+    router.push('/dashboard');
+  };
+  
+  onMounted(async () => {
+    if (validateToken()) {
+      await fetchProfiles();
+    }
+  });
   </script>
   

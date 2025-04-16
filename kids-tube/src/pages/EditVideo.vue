@@ -22,55 +22,75 @@
     </div>
   </template>
   
-  <script>
+  <script setup>
   import { ref, onMounted } from "vue";
-  import { useRoute } from "vue-router";
-  import { videoPatch } from "../services/videoFunctions"; // Ruta correcta al archivo de funciones
+  import { useRouter, useRoute } from "vue-router";
+  import { useTokenValidation } from '../composables/useTokenValidation';
   
-  export default {
-    name: "EditVideo",
-    setup() {
-      const route = useRoute();
-      const id = route.params.id;
+  const { validateToken } = useTokenValidation();
+  const router = useRouter();
+  const route = useRoute();
   
-      const video = ref({
-        title: "",
-        videoUrl: "",
-        description: "",
+  const video = ref({
+    title: "",
+    videoUrl: "",
+    description: "",
+  });
+  
+  const error = ref('');
+  
+  const loadVideo = async () => {
+    try {
+      const response = await fetch(`http://localhost:3000/videos/${route.params.id}`);
+      const data = await response.json();
+      video.value = {
+        title: data.title,
+        videoUrl: data.videoUrl,
+        description: data.description,
+      };
+    } catch (err) {
+      error.value = 'Error al cargar el video';
+      console.error('Error:', err);
+    }
+  };
+  
+  const updateVideo = async () => {
+    if (!validateToken()) return;
+    
+    try {
+      const response = await fetch(`http://localhost:3000/videos/${route.params.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          title: video.value.title,
+          videoUrl: video.value.videoUrl,
+          description: video.value.description,
+        }),
       });
   
-      const fetchVideo = async () => {
-        try {
-          const response = await fetch(`http://localhost:3000/videos?id=${id}`);
-          const data = await response.json();
-          video.value = {
-            title: data.title,
-            videoUrl: data.videoUrl,
-            description: data.description,
-          };
-        } catch (error) {
-          console.error("Error al obtener el video:", error);
-        }
-      };
-  
-      const updateVideo = async () => {
-        try {
-          await videoPatch(id, video.value);
-          window.location.href = "/dashboard";
-        } catch (error) {
-          console.error("Error al actualizar el video:", error);
-        }
-      };
-  
-      const goBack = () => {
-        window.history.back();
-      };
-  
-      onMounted(fetchVideo);
-  
-      return { video, updateVideo, goBack };
-    },
+      if (response.ok) {
+        router.push('/dashboard');
+      } else {
+        const data = await response.json();
+        error.value = data.message || 'Error al actualizar el video';
+      }
+    } catch (err) {
+      error.value = 'Error al actualizar el video';
+      console.error('Error:', err);
+    }
   };
+  
+  const goBack = () => {
+    window.history.back();
+  };
+  
+  onMounted(async () => {
+    if (validateToken()) {
+      await loadVideo();
+    }
+  });
   </script>
   
   

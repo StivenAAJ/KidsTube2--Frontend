@@ -5,7 +5,7 @@
   
         <!-- Nombre Completo -->
         <label class="block text-gray-700 font-medium">Nombre Completo *</label>
-        <input v-model="name" type="text" class="w-full p-3 border rounded mb-4 text-black" placeholder="Ingrese el nombre completo" />
+        <input v-model="fullName" type="text" class="w-full p-3 border rounded mb-4 text-black" placeholder="Ingrese el nombre completo" />
   
         <!-- PIN -->
         <label class="block text-gray-700 font-medium">PIN (6 dígitos) *</label>
@@ -27,7 +27,7 @@
   
         <!-- Botón de Guardar -->
         <button 
-        @click="createRestrictedUser" 
+        @click="handleSubmit" 
         class="w-full bg-blue-500 text-white p-3 rounded-lg text-lg font-semibold hover:bg-blue-600 transition"
       >
         Guardar Usuario
@@ -44,12 +44,18 @@
   </template>
   
   <script setup>
-import { ref } from "vue";
+import { ref, onMounted } from "vue";
+import { useRouter } from 'vue-router';
+import { useTokenValidation } from '../composables/useTokenValidation';
 
-const name = ref("");
+const { validateToken } = useTokenValidation();
+const router = useRouter();
+
+const fullName = ref("");
 const pin = ref("");
 const selectedAvatar = ref("");
-const parentId = "67c60f5a503fe95e104a8075"; // Asegúrate de obtenerlo correctamente
+const parentId = JSON.parse(sessionStorage.getItem('user'))._id;
+const error = ref("");
 
 const avatars = ref([
   { name: "Avatar 1", src: new URL("../assets/avatars/1.png", import.meta.url).href },
@@ -60,45 +66,42 @@ const avatars = ref([
   { name: "Avatar 6", src: new URL("../assets/avatars/6.png", import.meta.url).href },
 ]);
 
-const createRestrictedUser = async () => {
-  if (!name.value || !pin.value || !selectedAvatar.value) {
-    alert("Por favor, complete todos los campos.");
-    return;
-  }
-
-  // Extraer solo el nombre del archivo del avatar
-  const selectedAvatarName = selectedAvatar.value.split("/").pop();
-
+const handleSubmit = async () => {
+  if (!validateToken()) return;
+  
   try {
-    const response = await fetch("http://localhost:3000/restrictedUsers", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
+    const response = await fetch('http://localhost:3000/restrictedUsers', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
       body: JSON.stringify({
-        fullName: name.value,  // El backend espera "fullName" en vez de "name"
+        fullName: fullName.value,
         pin: pin.value,
-        avatar: selectedAvatarName, // Solo el nombre del archivo
-        parentAccount: parentId, // Asegurar que se envía correctamente
+        avatar: selectedAvatar.value.split("/").pop(),
+        parentAccount: parentId,
       }),
     });
 
     if (response.ok) {
-      alert("Usuario agregado con éxito");
-      name.value = "";
-      pin.value = "";
-      selectedAvatar.value = "";
-      window.location.href = "/dashboard";
+      router.push('/dashboard');
     } else {
-      const errorData = await response.json();
-      alert("Error al agregar usuario: " + errorData.error);
+      const data = await response.json();
+      error.value = data.message || 'Error al crear el usuario restringido';
     }
-  } catch (error) {
-    console.error("Error en el servidor:", error);
-    alert("Hubo un problema al conectar con el servidor.");
+  } catch (err) {
+    error.value = 'Error al crear el usuario restringido';
+    console.error('Error:', err);
   }
 };
+
 const goBack = () => {
         window.history.back();
     };
+
+onMounted(() => {
+  validateToken();
+});
 </script>
 
   

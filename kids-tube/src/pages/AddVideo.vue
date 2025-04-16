@@ -22,37 +22,50 @@
     </div>
   </template>
   
-  <script>
-  import { ref } from "vue";
+  <script setup>
+  import { ref, onMounted } from "vue";
+  import { useRouter } from 'vue-router';
+  import { useTokenValidation } from '../composables/useTokenValidation';
   
-  export default {
-    name: "AddVideo",
-    setup() {
-    const video = ref({
-      title: "",
-      videoUrl: "",
-      description: "",
-    });
+  const { validateToken } = useTokenValidation();
+  const router = useRouter();
   
-    const createVideo = async () => {
+  const video = ref({
+    title: "",
+    videoUrl: "",
+    description: "",
+  });
+  
+  const error = ref('');
+  
+  const createVideo = async () => {
+    if (!validateToken()) return;
+  
     try {
-        await fetch("http://localhost:3000/videos", {
+      const response = await fetch("http://localhost:3000/videos", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(video.value),
-        });
-        window.location.href = "/dashboard";
-    } catch (error) {
-        console.error("Error al agregar el video:", error);
+      });
+  
+      if (response.ok) {
+        router.push('/dashboard');
+      } else {
+        const data = await response.json();
+        error.value = data.message || 'Error al agregar el video';
+      }
+    } catch (err) {
+      error.value = 'Error al agregar el video';
+      console.error('Error:', err);
     }
-    };
-  
-    const goBack = () => {
-        window.history.back();
-    };
-  
-    return { video, createVideo, goBack };
-    },
   };
+  
+  const goBack = () => {
+    window.history.back();
+  };
+  
+  onMounted(() => {
+    validateToken();
+  });
   </script>
   

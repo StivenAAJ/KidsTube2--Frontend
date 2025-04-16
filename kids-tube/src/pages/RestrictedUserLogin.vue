@@ -9,8 +9,8 @@
         :class="{ 'selected-profile': selectedProfile && selectedProfile._id === profile._id }"
         @click="selectProfile(profile)"
       >
-        <img :src="profile.avatar" alt="Avatar" class="w-24 h-24 rounded-full transition-transform duration-300" />
-        <p class="mt-2 font-semibold">{{ profile.fullName }}</p>
+        <img :src="profile.avatar" :alt="profile.fullName" class="w-24 h-24 rounded-full transition-transform duration-300" />
+        <p class="mt-2 font-semibold text-white">{{ profile.fullName }}</p>
       </div>
     </div>
 
@@ -26,7 +26,7 @@
         ref="pinInput"
       />
       <button
-        @click="login"
+        @click="handleLogin"
         class="mt-4 px-6 py-2 bg-blue-600 text-white rounded-lg shadow-md hover:bg-blue-700 transition"
       >
         Entrar
@@ -64,126 +64,134 @@
 </template>
 
   
-  <script>
+<script setup>
+import { ref, onMounted } from 'vue';
+import { useRouter } from 'vue-router';
+import { useTokenValidation } from '../composables/useTokenValidation';
 
-  const avatarImages = import.meta.glob("/src/assets/avatars/*.png", { eager: true });
+const { validateToken } = useTokenValidation();
+const router = useRouter();
 
-  export default {
-  data() {
-    return {
-      profiles: [],
-      selectedProfile: null,
-      pin: "",
-      error: "",
-      showParentPinModal: false,  
-      parentPin: "",  
-      parentError: "El Pin ingresado no es correcto", 
-    };
-  },
-  methods: {
+// Importar las imágenes de los avatares
+const avatarImages = import.meta.glob('/src/assets/avatars/*.png', { eager: true });
 
-    selectProfile(profile) {
-      this.selectedProfile = profile;
-      this.pin = "";
-      this.error = "";
-      
+// Definir las variables
+const profiles = ref([]);
+const selectedProfile = ref(null);
+const pin = ref('');
+const error = ref('');
+const restrictedUsers = ref([]);
+const showParentPinModal = ref(false);
+const parentPin = ref('');
+const parentError = ref('');
 
-      // Enfocar el campo de PIN después de un pequeño retraso
-      this.$nextTick(() => {
-        this.$refs.pinInput.focus();
-      });
-    },
-
-    async fetchProfiles() {
-      try {
-        const parentAccount = localStorage.getItem("userId"); // Obtener ID del padre
-        if (!parentAccount) {
-          console.error("No hay cuenta padre activa.");
-          return;
-        }
-
-        const response = await fetch(`http://localhost:3000/restrictedUsers/by-parent/${parentAccount}`);
-
-        if (!response.ok) {
-          console.error("Error en la respuesta del servidor:", response.statusText);
-          return;
-        }
-
-        const data = await response.json();
-
-        if (!Array.isArray(data) || data.length === 0) {
-          console.warn("No hay perfiles disponibles para esta cuenta.");
-          this.profiles = [];
-          return;
-        }
-
-        this.profiles = data.map(profile => ({
-          ...profile,
-          avatar: avatarImages[`/src/assets/avatars/${profile.avatar}`]?.default || "/src/assets/avatars/default.png"
-        }));
-      } catch (error) {
-        console.error("Error al obtener perfiles", error);
-      }
-    },
-
-    selectProfile(profile) {
-      this.selectedProfile = profile;
-      this.pin = "";
-      this.error = "";
-    },
-    async login() {
-        if (!this.pin) {
-        this.error = "Debes ingresar tu PIN";
-        return;
-      }
-      try {
-        const response = await fetch("http://localhost:3000/restrictedUsers/login", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ profileId: this.selectedProfile._id, pin: this.pin })
-        });
-        const result = await response.json();
-        if (response.ok) {
-          localStorage.setItem("restrictedUser", JSON.stringify({ _id: this.selectedProfile._id })); // Guardar ID del usuario restringido
-          this.$router.push("/restricted-playlists");
-        } else {
-          this.error = result.error;
-        }
-      } catch (error) {
-        this.error = "Error al intentar iniciar sesión";
-      }
-    },
-  async validateParentPin() {
-    try {
-      const parentAccount = localStorage.getItem("userId"); 
-      if (!parentAccount) {
-        this.parentError = "No hay cuenta padre activa.";
-        return;
-      }
-
-      const response = await fetch("http://localhost:3000/users/validate-pin", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId: parentAccount, pin: this.parentPin })
-      });
-
-      const result = await response.json();
-
-      if (response.ok) {
-        this.showParentPinModal = false; // Cierra el modal
-        this.$router.push("/dashboard"); // Redirige al dashboard
-      } else {
-        this.parentError = result.error; // Muestra el error en pantalla
-      }
-    } catch (error) {
-      this.parentError = "Error al validar el PIN";
-    }
-  },
-},
-  mounted() {
-    this.fetchProfiles();
-  },
+// Función para obtener la URL del avatar
+const getAvatarUrl = (avatarPath) => {
+  if (!avatarPath) return '/src/assets/avatars/default.png';
+  const fileName = avatarPath.split('/').pop();
+  return avatarImages[`/src/assets/avatars/${fileName}`]?.default || '/src/assets/avatars/default.png';
 };
+
+const loadRestrictedUsers = async () => {
+  if (!validateToken()) return;
+  
+  try {
+    const parentId = localStorage.getItem('userId');
+    if (!parentId) {
+      error.value = 'No se encontró el ID del padre';
+      return;
+    }
+
+    const response = await fetch(`http://localhost:3000/restrictedUsers/by-parent/${parentId}`);
+    const data = await response.json();
+    // Procesar los avatares antes de asignar los datos
+    profiles.value = data.map(profile => ({
+      ...profile,
+      avatar: getAvatarUrl(profile.avatar)
+    }));
+    restrictedUsers.value = data;
+  } catch (err) {
+    error.value = 'Error al cargar usuarios';
+    console.error('Error:', err);
+  }
+};
+
+const selectProfile = (profile) => {
+  selectedProfile.value = profile;
+};
+
+const handleLogin = async () => {
+  if (!validateToken()) return;
+  
+  try {
+    // Verificar que haya un perfil seleccionado y un PIN
+    if (!selectedProfile.value || !pin.value) {
+      error.value = 'Por favor, ingresa tu PIN';
+      return;
+    }
+
+    const response = await fetch('http://localhost:3000/restrictedUsers/login', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        pin: pin.value,
+        profileId: selectedProfile.value._id // Incluir el ID del perfil seleccionado
+      }),
+    });
+
+    if (response.ok) {
+      const data = await response.json();
+      // Guardar los datos del usuario restringido
+      sessionStorage.setItem('restrictedUser', JSON.stringify({
+        ...selectedProfile.value,
+        ...data.user
+      }));
+      router.push('/restricted-playlists');
+    } else {
+      error.value = 'PIN incorrecto';
+    }
+  } catch (err) {
+    error.value = 'Error al iniciar sesión';
+    console.error('Error:', err);
+  }
+};
+
+const validateParentPin = async () => {
+  if (!validateToken()) return;
+  
+  try {
+    const parentAccount = localStorage.getItem("userId"); 
+    if (!parentAccount) {
+      parentError.value = "No hay cuenta padre activa.";
+      return;
+    }
+
+    const response = await fetch("http://localhost:3000/users/validate-pin", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId: parentAccount, pin: parentPin.value })
+    });
+
+    const result = await response.json();
+
+    if (response.ok) {
+      showParentPinModal.value = false;
+      router.push("/dashboard");
+    } else {
+      parentError.value = result.error;
+    }
+  } catch (error) {
+    parentError.value = "Error al validar el PIN";
+  }
+};
+
+onMounted(async () => {
+  if (validateToken()) {
+    await loadRestrictedUsers();
+  }
+});
 </script>
 
 <style scoped>

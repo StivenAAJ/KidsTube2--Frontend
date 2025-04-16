@@ -31,72 +31,79 @@
     </div>
   </template>
   
-  <script>
-  import { ref, onMounted } from "vue";
-  import { useRoute } from "vue-router";
+  <script setup>
+  import { ref, onMounted } from 'vue';
+  import { useRouter, useRoute } from 'vue-router';
+  import { useTokenValidation } from '../composables/useTokenValidation';
   
-  export default {
-    setup() {
-      const route = useRoute();
-      const playlist = ref({ name: "", profiles: [], videos: [] });
-      const profiles = ref([]);
-      const videos = ref([]);
+  const { validateToken } = useTokenValidation();
+  const router = useRouter();
+  const route = useRoute();
   
-      // Obtener datos de la playlist
-      const fetchPlaylist = async () => {
-        try {
-          const response = await fetch(`http://localhost:3000/playlists/${route.params.id}`);
-          playlist.value = await response.json();
-        } catch (error) {
-          console.error("Error al obtener la playlist:", error);
-        }
-      };
+  const name = ref('');
+  const selectedVideos = ref([]);
+  const selectedProfiles = ref([]);
+  const videos = ref([]);
+  const restrictedUsers = ref([]);
+  const error = ref('');
   
-      // Obtener perfiles y videos
-      const fetchProfiles = async () => {
-        try {
-          const response = await fetch("http://localhost:3000/restrictedUsers");
-          profiles.value = await response.json();
-        } catch (error) {
-          console.error("Error al obtener los perfiles:", error);
-        }
-      };
+  const loadData = async () => {
+    try {
+      const [playlistResponse, videosResponse, usersResponse] = await Promise.all([
+        fetch(`http://localhost:3000/playlists/${route.params.id}`),
+        fetch('http://localhost:3000/videos'),
+        fetch('http://localhost:3000/restrictedUsers')
+      ]);
+      
+      const playlist = await playlistResponse.json();
+      videos.value = await videosResponse.json();
+      restrictedUsers.value = await usersResponse.json();
   
-      const fetchVideos = async () => {
-        try {
-          const response = await fetch("http://localhost:3000/videos");
-          videos.value = await response.json();
-        } catch (error) {
-          console.error("Error al obtener los videos:", error);
-        }
-      };
+      name.value = playlist.name;
+      selectedVideos.value = playlist.videos.map(v => v._id);
+      selectedProfiles.value = playlist.profiles.map(p => p._id);
+    } catch (err) {
+      error.value = 'Error al cargar datos';
+      console.error('Error:', err);
+    }
+  };
   
-      // Actualizar Playlist
-      const updatePlaylist = async () => {
-        try {
-          await fetch(`http://localhost:3000/playlists/${route.params.id}`, {
-            method: "PATCH",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(playlist.value),
-          });
-          window.location.href = "/dashboard"; // Redirigir después de actualizar
-        } catch (error) {
-          console.error("Error al actualizar la playlist:", error);
-        }
-      };
-  
-      const goBack = () => {
-        window.location.href = "/dashboard";
-      };
-  
-      onMounted(() => {
-        fetchPlaylist();
-        fetchProfiles();
-        fetchVideos();
+  const handleSubmit = async () => {
+    if (!validateToken()) return;
+    
+    try {
+      const response = await fetch(`http://localhost:3000/playlists/${route.params.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: name.value,
+          videos: selectedVideos.value,
+          profiles: selectedProfiles.value
+        }),
       });
   
-      return { playlist, profiles, videos, updatePlaylist, goBack };
-    },
+      if (response.ok) {
+        router.push('/dashboard');
+      } else {
+        const data = await response.json();
+        error.value = data.message || 'Error al actualizar la playlist';
+      }
+    } catch (err) {
+      error.value = 'Error al actualizar la playlist';
+      console.error('Error:', err);
+    }
   };
+  
+  const goBack = () => {
+    router.push('/dashboard');
+  };
+  
+  onMounted(async () => {
+    if (validateToken()) {
+      await loadData();
+    }
+  });
   </script>
   

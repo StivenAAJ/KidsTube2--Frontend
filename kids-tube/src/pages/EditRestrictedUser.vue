@@ -33,54 +33,61 @@
     </div>
   </template>
   
-  <script>
+  <script setup>
   import { ref, onMounted } from "vue";
   import { useRoute, useRouter } from "vue-router";
+  import { useTokenValidation } from '../composables/useTokenValidation';
+  
+  const { validateToken } = useTokenValidation();
+  const route = useRoute();
+  const router = useRouter();
+  const user = ref({ fullName: "", pin: "", avatar: "" });
   
   const avatarImages = import.meta.glob("/src/assets/avatars/*.png", { eager: true });
   
-  export default {
-    setup() {
-      const route = useRoute();
-      const router = useRouter();
-      const user = ref({ fullName: "", pin: "", avatar: "" });
+  const avatarList = Object.keys(avatarImages).map(path => path.split("/").pop());
   
-      const avatarList = Object.keys(avatarImages).map(path => path.split("/").pop());
-  
-      const getAvatarUrl = (avatar) => {
-        return avatar ? avatarImages[`/src/assets/avatars/${avatar}`]?.default || "/src/assets/avatars/default.png" : "/src/assets/avatars/default.png";
-      };
-  
-      const fetchUser = async () => {
-        try {
-          const response = await fetch(`http://localhost:3000/restrictedUsers/${route.params.id}`);
-          user.value = await response.json();
-        } catch (error) {
-          console.error("Error al obtener el usuario restringido:", error);
-        }
-      };
-  
-      const updateRestrictedUser = async () => {
-        try {
-          await fetch(`http://localhost:3000/restrictedUsers/${route.params.id}`, {
-            method: "PATCH",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(user.value),
-          });
-          router.push("/dashboard");
-        } catch (error) {
-          console.error("Error al actualizar el usuario restringido:", error);
-        }
-      };
-
-      const goBack = () => {
-        window.history.back();
-      };
-  
-      onMounted(fetchUser);
-  
-      return { user, updateRestrictedUser, avatarList, getAvatarUrl, goBack };
-    },
+  const getAvatarUrl = (avatar) => {
+    return avatar ? avatarImages[`/src/assets/avatars/${avatar}`]?.default || "/src/assets/avatars/default.png" : "/src/assets/avatars/default.png";
   };
+  
+  const loadUser = async () => {
+    try {
+      const response = await fetch(`http://localhost:3000/restrictedUsers/${route.params.id}`);
+      const data = await response.json();
+      user.value = data;
+    } catch (err) {
+      console.error("Error al obtener el usuario restringido:", err);
+    }
+  };
+  
+  const updateRestrictedUser = async () => {
+    if (!validateToken()) return;
+    
+    try {
+      const response = await fetch(`http://localhost:3000/restrictedUsers/${route.params.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(user.value),
+      });
+      if (response.ok) {
+        router.push("/dashboard");
+      } else {
+        console.error("Error al actualizar el usuario restringido:", await response.json());
+      }
+    } catch (err) {
+      console.error("Error al actualizar el usuario restringido:", err);
+    }
+  };
+
+  const goBack = () => {
+    window.history.back();
+  };
+  
+  onMounted(async () => {
+    if (validateToken()) {
+      await loadUser();
+    }
+  });
   </script>
   

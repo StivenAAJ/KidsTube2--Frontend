@@ -12,7 +12,9 @@
           </button>
         </div>
 
-        <ul class="space-y-2">
+        <div v-if="loadingUsers">Cargando usuarios...</div>
+        <div v-else-if="usersError">Error: {{ usersError.message }}</div>
+        <ul v-else class="space-y-2">
           <li v-for="user in restrictedUsers" :key="user._id" class="bg-gradient-to-r from-blue-400 to-red-400 p-4 flex justify-between items-center rounded shadow">
             <div class="flex items-center space-x-3">
               <img :src="getAvatarUrl(user.avatar)" alt="Avatar" class="w-10 h-10 rounded-full border border-white shadow-md">
@@ -39,7 +41,9 @@
           </button>
         </div>
 
-        <ul class="space-y-2">
+        <div v-if="loadingPlaylists">Cargando playlists...</div>
+        <div v-else-if="playlistsError">Error: {{ playlistsError.message }}</div>
+        <ul v-else class="space-y-2">
           <li v-for="playlist in playlists" :key="playlist._id" class="bg-gradient-to-r from-green-400 to-yellow-300 p-4 flex justify-between items-center rounded shadow">
             <div class="flex items-center space-x-3">
               <span>{{ playlist.name }} - {{ playlist.profiles.length }} perfiles</span>
@@ -65,7 +69,9 @@
           </button>
         </div>
 
-        <ul class="space-y-2">
+        <div v-if="loadingVideos">Cargando videos...</div>
+        <div v-else-if="videosError">Error: {{ videosError.message }}</div>
+        <ul v-else class="space-y-2">
           <li v-for="video in videos" :key="video._id" class="bg-gradient-to-r from-blue-400 to-orange-300 p-4 flex justify-between items-center rounded shadow">
             <span>{{ video.title }} - {{ video.description }}</span>
             <div class="space-x-2">
@@ -85,125 +91,129 @@
     </div>
   </template>
   
-  <script>
+  <script setup>
 import { ref, onMounted } from "vue";
+import { useRouter } from 'vue-router';
+import { useTokenValidation } from '../composables/useTokenValidation';
 import { PlusIcon, PencilIcon, TrashIcon } from "@heroicons/vue/24/solid";
-const avatarImages = import.meta.glob("/src/assets/avatars/*.png", { eager: true });
+import { GET_VIDEOS, GET_PLAYLISTS, GET_RESTRICTED_USERS } from '../graphQL/queries'
 
-export default {
-  name: "DashboardPage",
-  components: { PlusIcon, PencilIcon, TrashIcon },
-  setup() {
-    const videos = ref([]);
-    const restrictedUsers = ref([]);
-    const playlists = ref([]);
+const { validateToken } = useTokenValidation();
+const router = useRouter();
+const avatarImages = import.meta.glob('/src/assets/avatars/*.png', { eager: true })
 
-    const fetchVideos = async () => {
-      try {
-        const response = await fetch("http://localhost:3000/videos");
-        videos.value = await response.json();
-      } catch (error) {
-        console.error("Error al obtener los videos:", error);
-      }
-    };
+const videos = ref([]);
+const restrictedUsers = ref([]);
+const playlists = ref([]);
 
-    const deleteVideo = async (id) => {
-      if (!confirm("¿Seguro que deseas eliminar este video?")) return;
-      
-      try {
-        await fetch(`http://localhost:3000/videos/${id}`, { method: "DELETE" });
-        fetchVideos();
-      } catch (error) {
-        console.error("Error al eliminar el video:", error);
-      }
-    };
-
-    const goToAddVideo = () => {
-      window.location.href = "/add-video"; // Ruta de la página de agregar video
-    };
-
-    const goToEditVideo = (id) => {
-      window.location.href = `/edit-video/${id}`; // Ruta de la página de editar video
-    };
-
-    onMounted(fetchVideos);
-
-    const fetchRestrictedUsers = async () => {
-      try {
-        const response = await fetch("http://localhost:3000/restrictedUsers");
-        restrictedUsers.value = await response.json();
-      } catch (error) {
-        console.error("Error al obtener los usuarios restringidos:", error);
-      }
-    };
-
-    const getAvatarUrl = (avatarPath) => {
-      if (!avatarPath) return "/src/assets/avatars/default.png"; // Avatar por defecto
-      const fileName = avatarPath.split("/").pop(); 
-      return avatarImages[`/src/assets/avatars/${fileName}`]?.default || "/src/assets/avatars/default.png";
-    };
-
-    const deleteRestrictedUser = async (id) => {
-      if (!confirm("¿Seguro que deseas eliminar este usuario restringido?")) return;
-
-      try {
-        await fetch(`http://localhost:3000/restrictedUsers/${id}`, { method: "DELETE" });
-        fetchRestrictedUsers();
-      } catch (error) {
-        console.error("Error al eliminar el usuario restringido:", error);
-      }
-    };
-
-    const goToAddRestrictedUser = () => {
-      window.location.href = "/add-restricted-user";
-    };
-
-    const goToEditRestrictedUser = (id) => {
-      window.location.href = `/edit-restricted-user/${id}`;
-    };
-
-    onMounted(fetchRestrictedUsers);
-
-    // Obtener Playlists
-    const fetchPlaylists = async () => {
-      try {
-        const response = await fetch("http://localhost:3000/playlists");
-        playlists.value = await response.json();
-      } catch (error) {
-        console.error("Error al obtener las playlists:", error);
-      }
-    };
-
-    // Eliminar Playlist
-    const deletePlaylist = async (id) => {
-      if (!confirm("¿Seguro que deseas eliminar esta playlist?")) return;
-      
-      try {
-        await fetch(`http://localhost:3000/playlists/${id}`, { method: "DELETE" });
-        fetchPlaylists();
-      } catch (error) {
-        console.error("Error al eliminar la playlist:", error);
-      }
-    };
-
-    // Redirecciones
-    const goToAddPlaylist = () => {
-      window.location.href = "/add-playlist";
-    };
-
-    const goToEditPlaylist = (id) => {
-      window.location.href = `/edit-playlist/${id}`;
-    };
-
-    onMounted(fetchPlaylists);
-
-
-    return { videos, deleteVideo, goToAddVideo, goToEditVideo,
-      restrictedUsers, deleteRestrictedUser, goToAddRestrictedUser, goToEditRestrictedUser, getAvatarUrl,
-      playlists, deletePlaylist, goToAddPlaylist, goToEditPlaylist,
-     };     
-  },
+const fetchVideos = async () => {
+  try {
+    const response = await fetch("http://localhost:3000/videos");
+    videos.value = await response.json();
+  } catch (error) {
+    console.error("Error al obtener los videos:", error);
+  }
 };
+
+const fetchRestrictedUsers = async () => {
+  try {
+    const response = await fetch("http://localhost:3000/restrictedUsers");
+    restrictedUsers.value = await response.json();
+  } catch (error) {
+    console.error("Error al obtener los usuarios restringidos:", error);
+  }
+};
+
+const fetchPlaylists = async () => {
+  try {
+    const response = await fetch("http://localhost:3000/playlists");
+    playlists.value = await response.json();
+  } catch (error) {
+    console.error("Error al obtener las playlists:", error);
+  }
+};
+
+const deleteVideo = async (id) => {
+  if (!validateToken()) return;
+  if (!confirm("¿Seguro que deseas eliminar este video?")) return;
+  
+  try {
+    await fetch(`http://localhost:3000/videos/${id}`, { method: "DELETE" });
+    fetchVideos();
+  } catch (error) {
+    console.error("Error al eliminar el video:", error);
+  }
+};
+
+const deleteRestrictedUser = async (id) => {
+  if (!validateToken()) return;
+  if (!confirm("¿Seguro que deseas eliminar este usuario restringido?")) return;
+
+  try {
+    await fetch(`http://localhost:3000/restrictedUsers/${id}`, { method: "DELETE" });
+    fetchRestrictedUsers();
+  } catch (error) {
+    console.error("Error al eliminar el usuario restringido:", error);
+  }
+};
+
+const deletePlaylist = async (id) => {
+  if (!validateToken()) return;
+  if (!confirm("¿Seguro que deseas eliminar esta playlist?")) return;
+  
+  try {
+    await fetch(`http://localhost:3000/playlists/${id}`, { method: "DELETE" });
+    fetchPlaylists();
+  } catch (error) {
+    console.error("Error al eliminar la playlist:", error);
+  }
+};
+
+const goToAddVideo = () => {
+  if (!validateToken()) return;
+  router.push('/add-video');
+};
+
+const goToEditVideo = (id) => {
+  if (!validateToken()) return;
+  router.push(`/edit-video/${id}`);
+};
+
+const goToAddRestrictedUser = () => {
+  if (!validateToken()) return;
+  router.push('/add-restricted-user');
+};
+
+const goToEditRestrictedUser = (id) => {
+  if (!validateToken()) return;
+  router.push(`/edit-restricted-user/${id}`);
+};
+
+const goToAddPlaylist = () => {
+  if (!validateToken()) return;
+  router.push('/add-playlist');
+};
+
+const goToEditPlaylist = (id) => {
+  if (!validateToken()) return;
+  router.push(`/edit-playlist/${id}`);
+};
+
+const getAvatarUrl = (avatarPath) => {
+  if (!avatarPath) return '/src/assets/avatars/default.png'
+  const fileName = avatarPath.split('/').pop()
+  return avatarImages[`/src/assets/avatars/${fileName}`]?.default || '/src/assets/avatars/default.png'
+}
+
+onMounted(async () => {
+  if (validateToken()) {
+    await Promise.all([
+      fetchVideos(),
+      fetchRestrictedUsers(),
+      fetchPlaylists()
+    ]);
+  }
+});
 </script>
   
   <style scoped>

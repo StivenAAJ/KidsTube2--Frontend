@@ -1,0 +1,130 @@
+# Root level ignores
+node_modules
+.DS_Store
+*.log
+
+# kids-tube specific ignores
+kids-tube/node_modules
+kids-tube/dist
+kids-tube/.vscode/*
+!kids-tube/.vscode/extensions.json
+kids-tube/.env
+kids-tube/.env.*
+kids-tube/*.local
+
+# Dependencies
+**/node_modules
+**/.pnp
+**/.pnp.js
+**/yarn.lock
+**/package-lock.json
+
+# Testing
+**/coverage
+**/cypress/videos/
+**/cypress/screenshots/
+
+# Production
+**/dist
+**/build
+
+# Local env files
+**/.env
+**/.env.local
+**/.env.*.local
+**/.env.development
+**/.env.test
+**/.env.production
+
+# Log files
+**/npm-debug.log*
+**/yarn-debug.log*
+**/yarn-error.log*
+**/pnpm-debug.log*
+**/logs
+**/*.log
+
+# Editor directories and files
+**/.idea
+**/.vscode/*
+!**/.vscode/extensions.json
+!**/.vscode/settings.json
+**/*.suo
+**/*.ntvs*
+**/*.njsproj
+**/*.sln
+**/*.sw?
+**/.project
+**/.classpath
+**/*.launch
+**/.settings/
+
+# OS generated files
+**/.DS_Store
+**/.DS_Store?
+**/._*
+**/.Spotlight-V100
+**/.Trashes
+**/ehthumbs.db
+**/Thumbs.db
+
+# Vue.js / Vite specific
+**/dist
+**/.vite
+**/.nuxt
+**/.output
+**/.nitro
+
+# GraphQL generated files
+**/*.generated.*
+**/*.graphql.d.ts
+**/schema.graphql
+
+# Debug files
+**/.debug
+**/debug.log
+
+# Cache directories
+**/.cache
+**/.temp
+**/.tmp
+
+# Local Netlify folder
+**/.netlify
+
+# Optional npm cache directory
+.npm
+
+# Optional eslint cache
+.eslintcache
+
+# Optional stylelint cache
+.stylelintcache
+
+# Temporary files
+*.swp
+*.swo
+*~
+
+# Build files
+.nuxt
+dist/
+build/
+
+# PWA
+public/service-worker.js
+public/precache-manifest.*.js
+
+# Cordova
+/platforms
+/plugins
+
+# Capacitor
+/ios
+/android
+
+# Firebase
+.firebase/
+firebase-debug.log
+/node_modules
+/node_modules/.bin
