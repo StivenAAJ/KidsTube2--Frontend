@@ -54,7 +54,7 @@ const router = useRouter();
 const fullName = ref("");
 const pin = ref("");
 const selectedAvatar = ref("");
-const parentId = JSON.parse(sessionStorage.getItem('user'))._id;
+const parentId = ref(null);
 const error = ref("");
 
 const avatars = ref([
@@ -79,7 +79,7 @@ const handleSubmit = async () => {
         fullName: fullName.value,
         pin: pin.value,
         avatar: selectedAvatar.value.split("/").pop(),
-        parentAccount: parentId,
+        parentAccount: parentId.value,
       }),
     });
 
@@ -99,7 +99,15 @@ const goBack = () => {
         window.history.back();
     };
 
-onMounted(() => {
+onMounted(async () => {
+  // Obtener el ID del padre del localStorage
+  const storedId = localStorage.getItem('userId');
+  if (!storedId) {
+    console.error('No se encontró ID del padre');
+    router.push('/login');
+    return;
+  }
+  parentId.value = storedId;
   validateToken();
 });
 </script>

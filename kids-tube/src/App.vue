@@ -68,7 +68,8 @@ export default {
     logout() {
       sessionStorage.removeItem("token"); // Eliminar token
       localStorage.removeItem("userId"); // Eliminar ID del usuario padre
-      localStorage.removeItem("restrictedUser"); // Eliminar nombre del usuario padre
+      sessionStorage.removeItem("restrictedUser"); // Eliminar nombre del usuario padre
+      sessionStorage.removeItem("currentPlaylist");
       this.isAuthenticated = false; // Actualizar estado de autenticación
       this.$router.push("/login"); // Redirigir al login
     },

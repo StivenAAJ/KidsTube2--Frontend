@@ -15,118 +15,343 @@
         <div class="bg-gradient-to-r from-blue-800 to-pink-600 p-8 rounded-xl w-96">
           <h2 class="text-2xl text-white font-bold ">Registro</h2>
           
-          <input type="text" placeholder="Nombre" v-model="first_name" class="w-full p-2 mt-4 rounded-lg" />
-          <input type="text" placeholder="Apellidos" v-model="last_name" class="w-full p-2 mt-4 rounded-lg" />
-          <input type="date" placeholder="Fecha de nacimiento" v-model="birthday" class="w-full p-2 mt-4 rounded-lg" />
-          <input type="text" placeholder="Número Telefónico" v-model="phone" class="w-full p-2 mt-4 rounded-lg" />
-          <input type="password" placeholder="Pin" v-model="pin" class="w-full p-2 mt-4 rounded-lg" maxlength="6" />
-          <p class="text-sm text-white-500 mt-1">El pin se utiliza para que sus niños lo ingresen cuando entran a sus cuentas</p>
-          <input type="email" placeholder="Correo" v-model="email" class="w-full p-2 mt-4 rounded-lg" />
-          <input type="password" placeholder="Contraseña" v-model="password" class="w-full p-2 mt-4 rounded-lg" />
-          <input type="password" placeholder="Confirmar Contraseña" v-model="confirm_password" class="w-full p-2 mt-4 rounded-lg" />
+          <form @submit.prevent="register" class="space-y-4">
+            <input 
+              type="text" 
+              v-model="first_name" 
+              placeholder="Nombre" 
+              class="w-full p-2 rounded-lg" 
+              required 
+            />
+            
+            <input 
+              type="text" 
+              v-model="last_name" 
+              placeholder="Apellidos" 
+              class="w-full p-2 rounded-lg" 
+              required 
+            />
+            
+            <input 
+              type="date" 
+              v-model="birthday" 
+              placeholder="Fecha de nacimiento" 
+              class="w-full p-2 rounded-lg" 
+              required 
+            />
 
-          <!-- Selector de países -->
-          <select v-model="selectedCountry" class=" text-black w-full p-2 mt-4 rounded-lg">
-          <option value="" disabled>Selecciona un país</option>
-          <option v-for="country in countries" :key="country.code" :value="country.name">
-            {{ country.name }}
-          </option>
-        </select>
+            <!-- Campo de teléfono -->
+            <div class="flex gap-2">
+              <select 
+                v-model="selectedCountry" 
+                class="w-1/3 p-2 rounded-lg text-black"
+                required
+              >
+                <option value="" disabled>País</option>
+                <option 
+                  v-for="country in countries" 
+                  :key="country.code" 
+                  :value="country"
+                >
+                  {{ country.flag }} +{{ country.dialCode }}
+                </option>
+              </select>
+              
+              <input 
+                type="tel" 
+                v-model="phoneNumber"
+                placeholder="Número telefónico"
+                class="w-2/3 p-2 rounded-lg text-black"
+                required
+              />
+            </div>
+            <span v-if="phoneError" class="text-red-500 text-xs">{{ phoneError }}</span>
 
-  
-          <p class="text-xs text-white mt-2">
-            Al crear una cuenta aceptas nuestros 
-            <router-link to="/Terms" class=" text-blue-300 underline">Términos</router-link>
-          </p>
-          
-          <button @click="register" class="w-full mt-4 p-2 bg-blue-400 text-white rounded-lg">Crear Cuenta</button>
+            <input 
+              type="password" 
+              v-model="pin" 
+              placeholder="Pin" 
+              class="w-full p-2 rounded-lg" 
+              maxlength="6" 
+              required 
+            />
+            <p class="text-sm text-white-500">El pin se utiliza para que sus niños lo ingresen cuando entran a sus cuentas</p>
+            
+            <input 
+              type="email" 
+              v-model="email" 
+              placeholder="Correo" 
+              class="w-full p-2 rounded-lg" 
+              required 
+            />
+            
+            <input 
+              type="password" 
+              v-model="password" 
+              placeholder="Contraseña" 
+              class="w-full p-2 rounded-lg" 
+              required 
+            />
+            
+            <input 
+              type="password" 
+              v-model="confirm_password" 
+              placeholder="Confirmar Contraseña" 
+              class="w-full p-2 rounded-lg" 
+              required 
+            />
+
+            <p class="text-xs text-white">
+              Al crear una cuenta aceptas nuestros 
+              <router-link to="/Terms" class="text-blue-300 underline">Términos</router-link>
+            </p>
+            
+            <button 
+              type="submit"
+              class="w-full p-2 bg-blue-400 text-white rounded-lg hover:bg-blue-500 transition-colors"
+              :disabled="isLoading"
+              @click="register"
+            >
+              <span v-if="isLoading" class="flex items-center justify-center">
+                <svg class="animate-spin h-5 w-5 mr-3" viewBox="0 0 24 24">
+                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                Registrando...
+              </span>
+              <span v-else>Crear Cuenta</span>
+            </button>
+
+            <!-- Mensajes de error y éxito -->
+            <div v-if="errorMessage" class="p-3 bg-red-100 text-red-700 rounded">
+              {{ errorMessage }}
+            </div>
+            <div v-if="successMessage" class="p-3 bg-green-100 text-green-700 rounded">
+              {{ successMessage }}
+            </div>
+          </form>
         </div>
       </div>
     </div>
 </template>
   
 <script>
+import { ref, computed } from 'vue';
 import { createUser } from "../services/userFunctions";
+import { parsePhoneNumber, isValidPhoneNumber, formatIncompletePhoneNumber } from 'libphonenumber-js';
+
 export default {
   data() {
     return {
       first_name: "",
       last_name: "",
       birthday: "",
-      phone: "",
-      pin : "",
+      phoneNumber: "",
+      phoneError: "",
+      formattedPhone: "",
+      pin: "",
       email: "",
       password: "",
       confirm_password: "",
-      selectedCountry: "",
-      countries: [], // Lista de países
+      selectedCountry: null,
+      countries: [],
+      isLoading: false,
+      successMessage: "",
+      errorMessage: "",
+      isValidPhone: false
     };
+  },
+
+  computed: {
+    isFormValid() {
+      return this.first_name && 
+             this.last_name && 
+             this.birthday && 
+             this.isValidPhone && 
+             this.pin && 
+             this.email && 
+             this.password && 
+             this.confirm_password && 
+             this.selectedCountry;
+    }
   },
   
   methods: {
-    
+    async fetchCountriesWithPhoneCodes() {
+      try {
+        // Obtener datos de países
+        const response = await fetch("https://restcountries.com/v3.1/all");
+        const data = await response.json();
+
+        // Obtener códigos telefónicos desde otra API
+        const phoneCodesResponse = await fetch("https://gist.githubusercontent.com/anubhavshrimal/75f6183458db8c453306f93521e93d37/raw/f77e7598a8503f1f70528ae1cbf9f66755698a16/CountryCodes.json");
+        const phoneCodes = await phoneCodesResponse.json();
+
+        // Combinar los datos
+        this.countries = data.map(country => {
+          const phoneCode = phoneCodes.find(pc => pc.code === country.cca2);
+          return {
+            name: country.name.common,
+            code: country.cca2,
+            flag: country.flag,
+            dialCode: phoneCode ? phoneCode.dial_code.replace('+', '') : '',
+          };
+        }).filter(c => c.dialCode) // Solo países con código telefónico
+          .sort((a, b) => a.name.localeCompare(b.name));
+
+      } catch (error) {
+        console.error("Error obteniendo datos de países:", error);
+      }
+    },
+
+    validatePhone() {
+      if (!this.phoneNumber) {
+        this.phoneError = "El número telefónico es requerido";
+        return false;
+      }
+      if (!this.selectedCountry) {
+        this.phoneError = "Selecciona un país";
+        return false;
+      }
+      // Validación básica: solo números
+      if (!/^\d+$/.test(this.phoneNumber)) {
+        this.phoneError = "Solo se permiten números";
+        return false;
+      }
+      this.phoneError = "";
+      return true;
+    },
+
     async register() {
-        if (this.password !== this.confirm_password) {
-          alert("Las contraseñas no coinciden");
+      try {
+        console.log("Iniciando registro...");
+        this.errorMessage = "";
+        this.successMessage = "";
+        this.isLoading = true;
+
+        // Validaciones
+        if (!this.validateForm()) {
           return;
         }
 
         const userData = {
           first_name: this.first_name,
           last_name: this.last_name,
-          birthday: this.birthday,
-          number: this.phone,
-          pin: this.pin,
           email: this.email,
           password: this.password,
-          country: this.selectedCountry,
+          number: this.formatPhoneNumber(),
+          pin: parseInt(this.pin),
+          country: this.selectedCountry.name,
+          birthday: this.birthday
         };
 
-        try {
-          const newUser = await createUser(userData);
-          console.log("Usuario registrado:", newUser);
-          alert("Registro exitoso");
-          this.$router.push("/Login"); // Redirigir tras registro exitoso
-        } catch (error) {
-          alert("Error al registrar usuario");
+        console.log("Datos a enviar:", userData);
+
+        const response = await createUser(userData);
+        console.log("Respuesta del servidor:", response);
+
+        if (response.token) {
+          // Guardar el token
+          sessionStorage.setItem('token', response.token);
+          
+          this.successMessage = "Registro exitoso. Redirigiendo...";
+          
+          // Esperar un momento antes de redirigir
+          setTimeout(() => {
+            this.$router.push('/verification-pending');
+          }, 1500);
+        } else {
+          throw new Error("No se recibió el token de autenticación");
         }
-    },  
-    
-    async fetchCountries() {
-      console.log("Llamando a la API de países...");
-      try {
-        const response = await fetch("https://restcountries.com/v3.1/all");
-        
-        if (!response.ok) {
-          throw new Error(`Error en la respuesta de la API: ${response.status}`);
-        }
 
-        const data = await response.json();
-        console.log("Datos recibidos:", data); // Verifica si llegan los datos
-
-        this.countries = data
-          .map(country => ({
-            name: country.name?.common || "Desconocido",
-            code: country.cca2 || country.cca3 || ""
-          }))
-          .sort((a, b) => a.name.localeCompare(b.name));
-
-        console.log("Lista de países procesada:", this.countries);
       } catch (error) {
-        console.error("Error obteniendo países:", error);
+        console.error("Error en registro:", error);
+        this.errorMessage = error.message || "Error al registrar usuario";
+      } finally {
+        this.isLoading = false;
       }
+    },
+
+    validateForm() {
+      // Validar contraseñas
+      if (this.password !== this.confirm_password) {
+        this.errorMessage = "Las contraseñas no coinciden";
+        return false;
+      }
+
+      // Validar teléfono
+      if (!this.phoneNumber || !this.selectedCountry) {
+        this.errorMessage = "El número telefónico y país son requeridos";
+        return false;
+      }
+
+      // Validar PIN
+      if (this.pin.length !== 6 || isNaN(this.pin)) {
+        this.errorMessage = "El PIN debe ser de 6 dígitos";
+        return false;
+      }
+
+      return true;
+    },
+
+    formatPhoneNumber() {
+      return this.selectedCountry ? 
+        `+${this.selectedCountry.dialCode}${this.phoneNumber}` : 
+        this.phoneNumber;
+    },
+
+    clearForm() {
+      this.first_name = "";
+      this.last_name = "";
+      this.birthday = "";
+      this.phoneNumber = "";
+      this.pin = "";
+      this.email = "";
+      this.password = "";
+      this.confirm_password = "";
+      this.selectedCountry = null;
+      this.phoneError = "";
+      this.formattedPhone = "";
+      this.isValidPhone = false;
+      this.errorMessage = "";
+      this.successMessage = "";
     },
   },
   mounted() {
-    this.fetchCountries(); // Llamamos a la API cuando el componente se monta
+    this.fetchCountriesWithPhoneCodes();
   },
   validatePin() {
       this.pin = this.pin.replace(/\D/g, "").slice(0, 6);
   },
+  watch: {
+    phoneNumber() {
+      this.validatePhone();
+    },
+    selectedCountry() {
+      if (this.phoneNumber) {
+        this.validatePhone();
+      }
+    },
+    pin(newValue) {
+      // Solo permitir números y máximo 6 dígitos
+      this.pin = newValue.replace(/\D/g, '').slice(0, 6);
+    }
+  }
 };
 </script>
 
   
   <style scoped>
   /* Add your styles here */
+  .country-option {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .flag {
+    width: 1.5rem;
+    height: 1rem;
+    object-fit: cover;
+  }
   </style>

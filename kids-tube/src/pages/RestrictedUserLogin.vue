@@ -162,28 +162,51 @@ const validateParentPin = async () => {
   if (!validateToken()) return;
   
   try {
-    const parentAccount = localStorage.getItem("userId"); 
-    if (!parentAccount) {
-      parentError.value = "No hay cuenta padre activa.";
+    const parentAccount = localStorage.getItem("userId");
+    console.log("ID recuperado:", parentAccount); // Para debugging
+    
+    if (!parentAccount || parentAccount === "undefined" || parentAccount === "null") {
+      parentError.value = "No hay cuenta padre activa. Por favor, inicia sesión nuevamente.";
+      router.push('/login'); // Redirigir al login si no hay userId válido
       return;
     }
 
-    const response = await fetch("http://localhost:3000/users/validate-pin", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ userId: parentAccount, pin: parentPin.value })
+    if (!parentPin.value) {
+      parentError.value = "Por favor, ingresa el PIN";
+      return;
+    }
+
+    console.log("Enviando request con:", { // Para debugging
+      userId: parentAccount,
+      pin: parentPin.value
     });
 
-    const result = await response.json();
+    const response = await fetch("http://localhost:3000/users/validate-pin", {
+      method: "POST",
+      headers: { 
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${localStorage.getItem("token")}` // Añadir token si es necesario
+      },
+      body: JSON.stringify({ 
+        userId: parentAccount, 
+        pin: parentPin.value
+      })
+    });
 
-    if (response.ok) {
-      showParentPinModal.value = false;
-      router.push("/dashboard");
-    } else {
-      parentError.value = result.error;
+    if (!response.ok) {
+      const result = await response.json();
+      console.error("Error response:", result); // Para debugging
+      parentError.value = result.error || "Error al validar el PIN";
+      return;
     }
+
+    const result = await response.json();
+    console.log("Respuesta exitosa:", result); // Para debugging
+    showParentPinModal.value = false;
+    router.push("/dashboard");
   } catch (error) {
-    parentError.value = "Error al validar el PIN";
+    console.error("Error completo:", error);
+    parentError.value = "Error al validar el PIN. Por favor, intenta nuevamente.";
   }
 };
 

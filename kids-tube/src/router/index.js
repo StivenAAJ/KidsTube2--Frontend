@@ -14,6 +14,8 @@ import EditPlaylist from '../pages/EditPlaylist.vue'
 import RestrictedUserLogin from '../pages/RestrictedUserLogin.vue'
 import RestrictedPlaylists from '../pages/RestrictedPlaylists.vue'
 import RestrictedPlayer from '../pages/RestrictedPlayer.vue'
+import VerifyEmail from '../pages/VerifyEmail.vue'
+import VerificationPending from '../pages/VerificationPending.vue'
 
 const routes = [
   { 
@@ -86,6 +88,16 @@ const routes = [
     component: RestrictedPlayer,
     meta: { requiresAuth: true }
   },
+  {
+    path: '/verify-email/:token',
+    component: VerifyEmail,
+    meta: { requiresAuth: false }
+  },
+  {
+    path: '/verification-pending',
+    component: VerificationPending,
+    meta: { requiresAuth: false }
+  }
 ]
 
 const router = createRouter({
@@ -93,24 +105,63 @@ const router = createRouter({
   routes
 })
 
-// Guard de navegación simplificado
-router.beforeEach((to, from, next) => {
-  const token = sessionStorage.getItem('token')
-  const isPublicRoute = to.meta.requiresAuth === false
+// Función para verificar el estado del usuario
+async function checkUserStatus(token) {
+  try {
+    const response = await fetch('http://localhost:3000/users/check-status', {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    });
+    if (!response.ok) throw new Error('Error verificando estado');
+    const data = await response.json();
+    return data.status;
+  } catch (error) {
+    console.error('Error checking user status:', error);
+    return null;
+  }
+}
+
+// Guard de navegación actualizado
+router.beforeEach(async (to, from, next) => {
+  const token = sessionStorage.getItem('token');
+  const isPublicRoute = to.meta.requiresAuth === false;
+  const isVerificationRoute = to.path.startsWith('/verify-email') || 
+                            to.path === '/verification-pending';
+
+  // Si es una ruta de verificación, permitir acceso
+  if (isVerificationRoute) {
+    next();
+    return;
+  }
 
   // Si la ruta requiere autenticación y no hay token
   if (!isPublicRoute && !token) {
-    next({ path: '/login' })
-    return
+    next({ path: '/login' });
+    return;
   }
 
-  // Si el usuario está autenticado e intenta acceder a páginas públicas (login/registro)
-  if (token && isPublicRoute) {
-    next({ path: '/dashboard' })
-    return
+  // Si hay token, verificar el estado del usuario
+  if (token) {
+    const userStatus = await checkUserStatus(token);
+    
+    // Si el usuario está pendiente y no está en una ruta pública
+    if (userStatus === 'pending' && !isPublicRoute) {
+      // Permitir acceso solo a rutas públicas y verification-pending
+      if (to.path !== '/verification-pending') {
+        next({ path: '/verification-pending' });
+        return;
+      }
+    }
+
+    // Si el usuario está verificado e intenta acceder a páginas públicas
+    if (userStatus === 'active' && isPublicRoute && to.path !== '/') {
+      next({ path: '/dashboard' });
+      return;
+    }
   }
 
-  next()
-})
+  next();
+});
 
 export default router

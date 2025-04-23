@@ -179,9 +179,37 @@ const goToEditVideo = (id) => {
   router.push(`/edit-video/${id}`);
 };
 
-const goToAddRestrictedUser = () => {
-  if (!validateToken()) return;
-  router.push('/add-restricted-user');
+const goToAddRestrictedUser = async () => {
+  try {
+    const userId = localStorage.getItem('userId');
+    if (!userId) {
+      console.error('No se encontró ID de usuario');
+      router.push('/login');
+      return;
+    }
+    
+    // Verificar el estado del usuario antes de navegar
+    const response = await fetch('http://localhost:3000/users/check-status', {
+      headers: {
+        'Authorization': `Bearer ${sessionStorage.getItem('token')}`
+      }
+    });
+
+    if (!response.ok) {
+      throw new Error('Error verificando estado del usuario');
+    }
+
+    const data = await response.json();
+    if (data.status === 'active') {
+      router.push('/add-restricted-user');
+    } else {
+      console.error('Usuario no activo');
+      router.push('/verification-pending');
+    }
+  } catch (error) {
+    console.error('Error:', error);
+    // Manejar el error apropiadamente
+  }
 };
 
 const goToEditRestrictedUser = (id) => {
@@ -196,6 +224,14 @@ const goToAddPlaylist = () => {
 
 const goToEditPlaylist = (id) => {
   if (!validateToken()) return;
+  
+  const token = sessionStorage.getItem('token');
+  if (!token) {
+    console.error('No hay token de autenticación');
+    router.push('/login');
+    return;
+  }
+
   router.push(`/edit-playlist/${id}`);
 };
 
