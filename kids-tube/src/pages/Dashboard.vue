@@ -92,46 +92,43 @@
   </template>
   
   <script setup>
-import { ref, onMounted } from "vue";
+import { ref, onMounted, computed } from "vue";
 import { useRouter } from 'vue-router';
 import { useTokenValidation } from '../composables/useTokenValidation';
 import { PlusIcon, PencilIcon, TrashIcon } from "@heroicons/vue/24/solid";
+import { useQuery } from '@vue/apollo-composable';
 import { GET_VIDEOS, GET_PLAYLISTS, GET_RESTRICTED_USERS } from '../graphQL/queries'
 
 const { validateToken } = useTokenValidation();
 const router = useRouter();
 const avatarImages = import.meta.glob('/src/assets/avatars/*.png', { eager: true })
 
-const videos = ref([]);
-const restrictedUsers = ref([]);
-const playlists = ref([]);
+// Queries de GraphQL
+const { result: videosResult, loading: loadingVideos, error: videosError } = useQuery(GET_VIDEOS, null, {
+  fetchPolicy: 'cache-and-network'
+});
+const { result: playlistsResult, loading: loadingPlaylists, error: playlistsError } = useQuery(GET_PLAYLISTS, null, {
+  fetchPolicy: 'cache-and-network'
+});
+const { result: usersResult, loading: loadingUsers, error: usersError } = useQuery(GET_RESTRICTED_USERS, null, {
+  fetchPolicy: 'cache-and-network'
+});
 
-const fetchVideos = async () => {
-  try {
-    const response = await fetch("http://localhost:3000/videos");
-    videos.value = await response.json();
-  } catch (error) {
-    console.error("Error al obtener los videos:", error);
-  }
-};
+// Computed properties para los datos con manejo de valores nulos
+const videos = computed(() => {
+  if (!videosResult.value) return [];
+  return videosResult.value.videos || [];
+});
 
-const fetchRestrictedUsers = async () => {
-  try {
-    const response = await fetch("http://localhost:3000/restrictedUsers");
-    restrictedUsers.value = await response.json();
-  } catch (error) {
-    console.error("Error al obtener los usuarios restringidos:", error);
-  }
-};
+const playlists = computed(() => {
+  if (!playlistsResult.value) return [];
+  return playlistsResult.value.playlists || [];
+});
 
-const fetchPlaylists = async () => {
-  try {
-    const response = await fetch("http://localhost:3000/playlists");
-    playlists.value = await response.json();
-  } catch (error) {
-    console.error("Error al obtener las playlists:", error);
-  }
-};
+const restrictedUsers = computed(() => {
+  if (!usersResult.value) return [];
+  return usersResult.value.restrictedUsers || [];
+});
 
 const deleteVideo = async (id) => {
   if (!validateToken()) return;
@@ -139,7 +136,10 @@ const deleteVideo = async (id) => {
   
   try {
     await fetch(`http://localhost:3000/videos/${id}`, { method: "DELETE" });
-    fetchVideos();
+    // Refetch videos
+    if (videosResult.value) {
+      videosResult.value.refetch();
+    }
   } catch (error) {
     console.error("Error al eliminar el video:", error);
   }
@@ -150,8 +150,13 @@ const deleteRestrictedUser = async (id) => {
   if (!confirm("¿Seguro que deseas eliminar este usuario restringido?")) return;
 
   try {
-    await fetch(`http://localhost:3000/restrictedUsers/${id}`, { method: "DELETE" });
-    fetchRestrictedUsers();
+    const response = await fetch(`http://localhost:3000/restrictedUsers/${id}`, { method: "DELETE" });
+    if (!response.ok) {
+      throw new Error("Error al eliminar el usuario");
+    }
+
+    // Actualiza manualmente la lista de usuarios
+    usersResult.value.restrictedUsers = usersResult.value.restrictedUsers.filter(user => user._id !== id);
   } catch (error) {
     console.error("Error al eliminar el usuario restringido:", error);
   }
@@ -163,7 +168,10 @@ const deletePlaylist = async (id) => {
   
   try {
     await fetch(`http://localhost:3000/playlists/${id}`, { method: "DELETE" });
-    fetchPlaylists();
+    // Refetch playlists
+    if (playlistsResult.value) {
+      playlistsResult.value.refetch();
+    }
   } catch (error) {
     console.error("Error al eliminar la playlist:", error);
   }
@@ -208,7 +216,6 @@ const goToAddRestrictedUser = async () => {
     }
   } catch (error) {
     console.error('Error:', error);
-    // Manejar el error apropiadamente
   }
 };
 
@@ -241,14 +248,8 @@ const getAvatarUrl = (avatarPath) => {
   return avatarImages[`/src/assets/avatars/${fileName}`]?.default || '/src/assets/avatars/default.png'
 }
 
-onMounted(async () => {
-  if (validateToken()) {
-    await Promise.all([
-      fetchVideos(),
-      fetchRestrictedUsers(),
-      fetchPlaylists()
-    ]);
-  }
+onMounted(() => {
+  validateToken();
 });
 </script>
   
