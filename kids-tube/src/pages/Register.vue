@@ -121,15 +121,26 @@
               </span>
               <span v-else>Crear Cuenta</span>
             </button>
-
-            <!-- Mensajes de error y éxito -->
-            <div v-if="errorMessage" class="p-3 bg-red-100 text-red-700 rounded">
-              {{ errorMessage }}
-            </div>
-            <div v-if="successMessage" class="p-3 bg-green-100 text-green-700 rounded">
-              {{ successMessage }}
-            </div>
           </form>
+
+        <!-- Botón de Google -->
+        <div v-if="!isGoogleSignUp">
+          <div id="g_id_onload"
+               data-client_id="730564703117-rdjr6nq4g67tqkldk2rpvkf676ha0s1i.apps.googleusercontent.com"
+               data-context="signup"
+               data-ux_mode="popup"
+               data-callback="handleGoogleSignUp">
+          </div>
+          <div class="g_id_signin" data-type="standard"></div>
+        </div>
+
+        <!-- Mensajes de error y éxito -->
+        <div v-if="errorMessage" class="p-3 bg-red-100 text-red-700 rounded">
+          {{ errorMessage }}
+        </div>
+        <div v-if="successMessage" class="p-3 bg-green-100 text-green-700 rounded">
+          {{ successMessage }}
+        </div>
         </div>
       </div>
     </div>
@@ -139,6 +150,7 @@
 import { ref, computed } from 'vue';
 import { createUser } from "../services/userFunctions";
 import { parsePhoneNumber, isValidPhoneNumber, formatIncompletePhoneNumber } from 'libphonenumber-js';
+import { GoogleLogin } from '@react-oauth/google';
 
 export default {
   data() {
@@ -316,9 +328,48 @@ export default {
       this.errorMessage = "";
       this.successMessage = "";
     },
+
+    async handleGoogleSignUp(response) {
+      try {
+        const token = response.credential; // Token JWT de Google
+        console.log("Token de Google:", token);
+
+        // Envía el token al backend para procesar el registro
+        const res = await fetch("http://localhost:3000/auth/google-signup", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ token }),
+        });
+
+        if (!res.ok) {
+          throw new Error("Error al registrarse con Google");
+        }
+
+        const data = await res.json();
+        console.log("Usuario registrado:", data);
+
+        this.successMessage = "Registro exitoso con Google. Redirigiendo...";
+        setTimeout(() => {
+          window.location.href = "/dashboard"; // Redirige al usuario
+        }, 1500);
+      } catch (error) {
+        console.error("Error en Google Sign-Up:", error);
+        this.errorMessage = "Error al registrarse con Google";
+      }
+    },
+    
+    handleGoogleError() {
+      console.error("Error al iniciar sesión con Google");
+      this.errorMessage = "Error al iniciar sesión con Google";
+    }
   },
   mounted() {
     this.fetchCountriesWithPhoneCodes();
+
+    // Hacer disponible globalmente el callback de Google
+    window.handleGoogleSignUp = this.handleGoogleSignUp;
   },
   validatePin() {
       this.pin = this.pin.replace(/\D/g, "").slice(0, 6);
@@ -354,4 +405,9 @@ export default {
     height: 1rem;
     object-fit: cover;
   }
+  .g_id_signin {
+  display: block !important;
+  margin-top: 1rem;
+}
+
   </style>

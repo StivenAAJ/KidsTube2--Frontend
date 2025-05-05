@@ -140,26 +140,40 @@ export default {
       try {
         this.isLoading = true;
         this.error = "";
-        
+
         const response = await loginUser(this.email, this.password);
         console.log("Respuesta login inicial:", response);
-        
+
+        // Verificar si se requiere verificación SMS
         if (response.requiresSmsVerification) {
-          this.tempToken = response.tempToken;
-          this.tempUserId = response.userId;
-          console.log("Guardando ID temporal:", this.tempUserId);
-          this.showSmsVerification = true;
-        } else {
+          this.handleSmsVerification(response);
+          return;
+        }
+
+        // Verificar si se recibió un token (usuarios registrados con Google)
+        if (response.token) {
           sessionStorage.setItem("token", response.token);
           localStorage.setItem("userId", response.userId);
-          this.$router.push("/restricted-user-login");
+          console.log("Token guardado:", response.token);
+          this.$router.push("/restricted-user-login"); // Redirigir a la página de usuario restringido
+          return;
         }
+
+        // Si no se cumple ninguna de las condiciones anteriores, lanza un error
+        throw new Error("No se recibió el token de autenticación ni se requiere verificación SMS");
       } catch (error) {
         this.error = error.message;
         console.error("Error en login:", error);
       } finally {
         this.isLoading = false;
       }
+    },
+
+    handleSmsVerification(response) {
+      this.tempToken = response.tempToken;
+      this.tempUserId = response.userId;
+      console.log("Guardando ID temporal:", this.tempUserId);
+      this.showSmsVerification = true;
     },
 
     async verifySmsCode() {

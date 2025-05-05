@@ -53,7 +53,9 @@ export const loginUser = async (email, password) => {
     return {
       requiresSmsVerification: data.requiresSmsVerification,
       tempToken: data.tempToken,
-      userId: data.userId // Debería venir del backend ahora
+      token: data.token,
+      userId: data.userId, // Debería venir del backend ahora
+      
     };
   } catch (error) {
     console.error("Error en loginUser:", error);
