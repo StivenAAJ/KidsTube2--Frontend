@@ -30,7 +30,7 @@
       <!-- Lista de videos en miniatura -->
       <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
         <div 
-          v-for="video in filteredVideos" 
+          v-for="video in currentPlaylist.videos" 
           :key="video._id" 
           class="cursor-pointer p-2 bg-white shadow-md rounded-lg hover:bg-gray-200 transition"
           @click="selectVideo(video)"
@@ -49,22 +49,42 @@
 </template>
 
 <script setup>
-import { ref, computed, watch } from 'vue';
-import { useRoute } from 'vue-router';
+import { ref, computed, watch, onMounted } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 import { useQuery } from '@vue/apollo-composable';
 import { GET_PLAYLIST } from '../graphQL/queries';
 import { useTokenValidation } from '../composables/useTokenValidation';
 
 const route = useRoute();
+const router = useRouter();
 const { validateToken } = useTokenValidation();
 const searchQuery = ref('');
 const selectedVideo = ref(null);
+const restrictedUser = ref(null);
+
+// Obtener el usuario restringido desde sessionStorage
+onMounted(() => {
+  const user = sessionStorage.getItem('restrictedUser');
+  if (user) {
+    restrictedUser.value = JSON.parse(user);
+  } else {
+    console.error('No se encontró el usuario restringido en sessionStorage');
+    router.push('/login'); // Redirigir al login si no hay usuario restringido
+  }
+});
+
+// Verificar si el ID de la playlist es válido
+if (!route.params.id) {
+  console.error('No se proporcionó un ID de playlist válido');
+  router.push('/'); // Redirigir a la página principal si no hay ID
+}
 
 // GraphQL query
-const { result, loading, error } = useQuery(
+const { result, loading, error, refetch } = useQuery(
   GET_PLAYLIST,
   () => ({
-    id: route.params.id
+    id: route.params.id,
+    searchQuery: searchQuery.value // Pasar el argumento searchQuery
   }),
   {
     fetchPolicy: 'cache-and-network'
@@ -74,12 +94,16 @@ const { result, loading, error } = useQuery(
 // Computed properties
 const currentPlaylist = computed(() => result.value?.playlist);
 
-const filteredVideos = computed(() => {
-  if (!currentPlaylist.value?.videos) return [];
-  return currentPlaylist.value.videos.filter(video =>
-    video.title.toLowerCase().includes(searchQuery.value.toLowerCase())
-  );
+// Watchers
+watch(searchQuery, () => {
+  refetch(); // Refetch la consulta cuando cambie el valor de searchQuery
 });
+
+watch(currentPlaylist, (newPlaylist) => {
+  if (newPlaylist?.videos?.length > 0 && !selectedVideo.value) {
+    selectedVideo.value = newPlaylist.videos[0];
+  }
+}, { immediate: true });
 
 // Utility functions
 const formatYouTubeUrl = (url) => {
@@ -120,13 +144,6 @@ const getYoutubeThumbnail = (url) => {
 const selectVideo = (video) => {
   selectedVideo.value = video;
 };
-
-// Watchers
-watch(currentPlaylist, (newPlaylist) => {
-  if (newPlaylist?.videos?.length > 0 && !selectedVideo.value) {
-    selectedVideo.value = newPlaylist.videos[0];
-  }
-}, { immediate: true });
 
 // Lifecycle hooks
 validateToken();

@@ -45,11 +45,11 @@ export const GET_PLAYLISTS = gql`
 `;
 
 export const GET_PLAYLIST = gql`
-  query GetPlaylist($id: ID!) {
+  query GetPlaylist($id: ID!, $searchQuery: String) {
     playlist(id: $id) {
       _id
       name
-      videos {
+      videos(searchQuery: $searchQuery) {
         _id
         title
         videoUrl
