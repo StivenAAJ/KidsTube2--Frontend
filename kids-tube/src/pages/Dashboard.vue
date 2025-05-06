@@ -104,13 +104,13 @@ const router = useRouter();
 const avatarImages = import.meta.glob('/src/assets/avatars/*.png', { eager: true })
 
 // Queries de GraphQL
-const { result: videosResult, loading: loadingVideos, error: videosError } = useQuery(GET_VIDEOS, null, {
+const { result: videosResult, loading: loadingVideos, error: videosError, refetch: refetchVideos } = useQuery(GET_VIDEOS, null, {
   fetchPolicy: 'cache-and-network'
 });
-const { result: playlistsResult, loading: loadingPlaylists, error: playlistsError } = useQuery(GET_PLAYLISTS, null, {
+const { result: playlistsResult, loading: loadingPlaylists, error: playlistsError, refetch: refetchPlaylists } = useQuery(GET_PLAYLISTS, null, {
   fetchPolicy: 'cache-and-network'
 });
-const { result: usersResult, loading: loadingUsers, error: usersError } = useQuery(GET_RESTRICTED_USERS, null, {
+const { result: usersResult, loading: loadingUsers, error: usersError, refetch: refetchRestrictedUsers } = useQuery(GET_RESTRICTED_USERS, null, {
   fetchPolicy: 'cache-and-network'
 });
 
@@ -133,13 +133,15 @@ const restrictedUsers = computed(() => {
 const deleteVideo = async (id) => {
   if (!validateToken()) return;
   if (!confirm("¿Seguro que deseas eliminar este video?")) return;
-  
+
   try {
-    await fetch(`http://localhost:3000/videos/${id}`, { method: "DELETE" });
-    // Refetch videos
-    if (videosResult.value) {
-      videosResult.value.refetch();
+    const response = await fetch(`http://localhost:3000/videos/${id}`, { method: "DELETE" });
+    if (!response.ok) {
+      throw new Error("Error al eliminar el video");
     }
+
+    // Refetch videos
+    await refetchVideos(); // Actualiza la lista de videos
   } catch (error) {
     console.error("Error al eliminar el video:", error);
   }
@@ -152,11 +154,11 @@ const deleteRestrictedUser = async (id) => {
   try {
     const response = await fetch(`http://localhost:3000/restrictedUsers/${id}`, { method: "DELETE" });
     if (!response.ok) {
-      throw new Error("Error al eliminar el usuario");
+      throw new Error("Error al eliminar el usuario restringido");
     }
 
-    // Actualiza manualmente la lista de usuarios
-    usersResult.value.restrictedUsers = usersResult.value.restrictedUsers.filter(user => user._id !== id);
+    // Refetch restricted users
+    await refetchRestrictedUsers(); // Actualiza la lista de usuarios restringidos
   } catch (error) {
     console.error("Error al eliminar el usuario restringido:", error);
   }
@@ -165,13 +167,15 @@ const deleteRestrictedUser = async (id) => {
 const deletePlaylist = async (id) => {
   if (!validateToken()) return;
   if (!confirm("¿Seguro que deseas eliminar esta playlist?")) return;
-  
+
   try {
-    await fetch(`http://localhost:3000/playlists/${id}`, { method: "DELETE" });
-    // Refetch playlists
-    if (playlistsResult.value) {
-      playlistsResult.value.refetch();
+    const response = await fetch(`http://localhost:3000/playlists/${id}`, { method: "DELETE" });
+    if (!response.ok) {
+      throw new Error("Error al eliminar la playlist");
     }
+
+    // Refetch playlists
+    await refetchPlaylists(); // Actualiza la lista de playlists
   } catch (error) {
     console.error("Error al eliminar la playlist:", error);
   }
