@@ -142,6 +142,6 @@ Este proyecto está bajo la Licencia [TU_LICENCIA] - ver el archivo LICENSE.md p
 
 ## ✉️ Contacto
 
-Stiven Arguello Jimenez  - arguellojim2005@gmail.com
+Stiven Arguello Jimenez  - stivenaaj@gmail.com
 
-Link del proyecto: https://github.com/StivenAAJ/KidsTube---Frontend.git
+Link del proyecto: https://github.com/StivenAAJ/KidsTube2---Frontend.git
